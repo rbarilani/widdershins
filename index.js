@@ -178,9 +178,9 @@ function convert(swagger,options) {
 	defaults.includes = [];
 	defaults.templateCallback = function(templateName,stage,data) { return data; };
 
-	if (!options.codeSamples) defaults.language_tabs = [];
-
     options = Object.assign({},defaults,options);
+
+    if (!options.codeSamples) defaults.language_tabs = [];
 
     if (typeof templates === 'undefined') {
 		templates = dot.process({ path: path.join(__dirname,'templates') });
