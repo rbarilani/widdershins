@@ -168,6 +168,7 @@ function parameterToSchema(param,swagger) {
 function convert(swagger,options) {
 
     var defaults = {};
+    defaults.header = true;
     defaults.language_tabs = [{'shell': 'Shell'},{'http': 'HTTP'},{'javascript': 'JavaScript'},{'javascript--nodejs': 'Node.JS'},{'python': 'Python'},{'ruby': 'Ruby'},{'java': 'Java'}];
     defaults.codeSamples = true;
 	defaults.theme = 'darkula';
@@ -736,7 +737,7 @@ function convert(swagger,options) {
 		if (data.append) { content += data.append; delete data.append; }
 	}
 
-    var headerStr = '---\n'+yaml.safeDump(header)+'---\n';
+    var headerStr = options.header ? '---\n'+yaml.safeDump(header)+'---\n' : '';
 	// apparently you can insert jekyll front-matter in here for github -- see lord/slate
     return (headerStr+'\n'+content.split('\n\n\n').join('\n\n'));
 }
