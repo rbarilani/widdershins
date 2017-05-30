@@ -165,9 +165,16 @@ function parameterToSchema(param,swagger) {
 	return schema;
 }
 
+const controllers = {
+
+}
+
 function convert(swagger,options) {
 
+    // options initialization
+    // ----------------------
     var defaults = {};
+    defaults.single = true;
     defaults.header = true;
     defaults.language_tabs = [{'shell': 'Shell'},{'http': 'HTTP'},{'javascript': 'JavaScript'},{'javascript--nodejs': 'Node.JS'},{'python': 'Python'},{'ruby': 'Ruby'},{'java': 'Java'}];
     defaults.codeSamples = true;
@@ -180,7 +187,7 @@ function convert(swagger,options) {
 
     options = Object.assign({},defaults,options);
 
-    if (!options.codeSamples) defaults.language_tabs = [];
+    if (!options.codeSamples) defaults.language_tabs = []; // FIXME better using options also for language_tabs
 
     if (typeof templates === 'undefined') {
 		templates = dot.process({ path: path.join(__dirname,'templates') });
@@ -189,6 +196,8 @@ function convert(swagger,options) {
 		templates = Object.assign(templates, dot.process({ path: options.user_templates }));
 	}
 
+    // header model
+    // -------------------------
     var header = {};
     header.title = swagger.info.title+' '+((swagger.info.version.toLowerCase().startsWith('v')) ? swagger.info.version : 'v'+swagger.info.version);
 
@@ -207,7 +216,11 @@ function convert(swagger,options) {
     header.search = options.search;
     header.highlight_theme = options.theme;
 
+    //
+    // template data global
+    // -------------------------
     var data = {};
+    data._options = options;
 	data.openapi = swagger;
 	data.header = header;
 
@@ -223,10 +236,11 @@ function convert(swagger,options) {
 
 	data.baseUrl = data.protocol+'://'+data.host+(swagger.basePath ? swagger.basePath : '/');
     data.contactName = (swagger.info.contact && swagger.info.contact.name ? swagger.info.contact.name : 'Support');
-    
+
+    // initialize content string
     var content = '';
 
-	data = options.templateCallback('heading_main','pre',data);
+	data = options.templateCallback('heading_main','pre',data); // FIXME remove templateCallback and data.append ?
 	if (data.append) { content += data.append; delete data.append; }
 	content += templates.heading_main(data)+'\n';
 	data = options.templateCallback('heading_main','post',data);
@@ -259,25 +273,42 @@ function convert(swagger,options) {
 
     var apiInfo = convertSwagger(swagger);
 
+    /**
+     * FIXME THIS IS NOT USING TEMPLATES
+     */
+
+    // resources output
+    // ---------------------------------
     for (var r in apiInfo.resources) {
-        content += '# '+r+'\n\n';
+
+        // resource output
+        // ------------------------------
+        // ```md # TITLE
+        content += (options.single ? '# ' : '## ') +r+'\n\n';
         var resource = apiInfo.resources[r]
+
+        // ```md <p> description
         if (resource.description) content += resource.description+'\n\n';
 
+        // ```md <a> externalDocs
         if (resource.externalDocs) {
             if (resource.externalDocs.url) {
                 content += '<a href="'+resource.externalDocs.url+'">'+(resource.externalDocs.description ? resource.externalDocs.description : 'External docs')+'</a>\n';
             }
         }
 
+        // operations output
+        // ------------------------------
         for (var m in resource.methods) {
             var method = resource.methods[m];
             var subtitle = method.op.toUpperCase()+' '+method.path;
             var op = swagger.paths[method.path][method.op];
             if (method.op != 'parameters') {
 
+                // operation output
+                // ------------------------------
                 var opName = (op.operationId ? op.operationId : subtitle);
-                content += '## '+opName+'\n\n';
+                content += (options.single ? '## ' : '### ')+opName+'\n\n'; // FIXME
 
                 var url = (swagger.schemes ? swagger.schemes[0] : data.protocol)+'://'+data.host+(swagger.basePath ? swagger.basePath : '')+method.path;
                 var consumes = (op.consumes||[]).concat(swagger.consumes||[]);
@@ -288,6 +319,8 @@ function convert(swagger,options) {
                 var parameters = (swagger.paths[method.path].parameters || []).concat(swagger.paths[method.path][method.op].parameters || []);
                 // TODO dedupe overridden parameters
 
+                // populate context (data) for operation output
+                // --------------------------------------------
                 var codeSamples = (options.codeSamples || op["x-code-samples"]);
                 if (codeSamples) {
 					data.method = method.op;
@@ -343,7 +376,7 @@ function convert(swagger,options) {
 							param.exampleValues.object = obj[param.name];
                         }
                         catch (ex) {
-                        	console.log('# '+ex);
+                        	console.error(ex);
 							param.exampleValues.json = '...';
                         }
 						if (param.in == 'body') {
@@ -390,6 +423,8 @@ function convert(swagger,options) {
 						data.allHeaders.push(contentType);
 					}
 
+                    // code samples output
+                    // ---------------------------------------------------------------
 					data = options.templateCallback('heading_code_samples','pre',data);
 					if (data.append) { content += data.append; delete data.append; }
                     content += templates.heading_code_samples(data);
@@ -472,12 +507,16 @@ function convert(swagger,options) {
                     }
                 }
 
+                // operation title, summary, etc.
                 if (subtitle != opName) content += '`'+subtitle+'`\n\n';
                 if (op.summary) content += '*'+op.summary+'*\n\n';
                 if (op.description) content += op.description+'\n\n';
 
+
+                // FROM NOW ON I DON'T KNOW WHAT THE CODE IS DOING
+                // -----------------------------------------------
 				data.enums = [];
- 
+
 				if (parameters.length>0) {
                     var longDescs = false;
                     for (var p in parameters) {
@@ -556,7 +595,7 @@ function convert(swagger,options) {
                                     }
                           	 	}
                           		catch (ex) {
-                           	    	console.log('# '+ex);
+                           	    	console.error(ex);
                            		}
 							}
                             if (obj && obj.properties) obj = obj.properties;
@@ -655,7 +694,7 @@ function convert(swagger,options) {
                                    		obj = sampler.sample(obj); // skipReadOnly: false
                                 	}
                                 	catch (ex) {
-                                  		console.log('# '+ex);
+                                  		console.error(ex);
                                 	}
                                 }
                                 if (doContentType(produces,jsonContentTypes)) {
@@ -722,6 +761,8 @@ function convert(swagger,options) {
             }
         }
     }
+    // --------- FIXME: WOW that was a long read!
+
 
 	data = options.templateCallback('footer','pre',data);
 	if (data.append) { content += data.append; delete data.append; }

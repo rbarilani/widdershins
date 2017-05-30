@@ -1,4 +1,10 @@
+{{? data._options.single == true }}
 # Authentication
+{{?}}
+
+{{? data._options.single == false }}
+## Authentication
+{{?}}
 
 {{~ data.securityDefinitions :sd}}
 {{? sd.type == 'apiKey' }}
